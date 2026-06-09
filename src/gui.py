@@ -12,7 +12,9 @@ import threading
 import time
 import sys
 import os
-import socket
+import urllib.request
+import urllib.error
+import json
 
 import uvicorn
 import webview
@@ -23,11 +25,17 @@ from app import app as fastapi_app
 
 PORT = 8765
 URL = f"http://localhost:{PORT}/static/jobs.html"
+_HEALTH_URL = f"http://127.0.0.1:{PORT}/jobs/stats"
 
 
-def _port_open(port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(("localhost", port)) == 0
+def _our_server_ready() -> bool:
+    """Return True only when /jobs/stats responds with our expected payload."""
+    try:
+        with urllib.request.urlopen(_HEALTH_URL, timeout=1) as resp:
+            data = json.loads(resp.read())
+            return "total" in data
+    except Exception:
+        return False
 
 
 def _start_server() -> None:
@@ -39,11 +47,11 @@ def main() -> None:
     server_thread = threading.Thread(target=_start_server, daemon=True)
     server_thread.start()
 
-    # Wait up to 5 s for the server to accept connections
+    # Poll /jobs/stats — confirms it's *our* app, not an unrelated service
     deadline = time.time() + 5
-    while not _port_open(PORT):
+    while not _our_server_ready():
         if time.time() > deadline:
-            print("ERROR: server did not start in time", file=sys.stderr)
+            print("ERROR: job-apply server did not start in time", file=sys.stderr)
             sys.exit(1)
         time.sleep(0.1)
 
