@@ -5,11 +5,14 @@ A super simple FastAPI application that allows students to view and sign up
 for extracurricular activities at Mergington High School.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
+from typing import Optional
 import os
 from pathlib import Path
+import job_finder
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
@@ -130,3 +133,96 @@ def unregister_from_activity(activity_name: str, email: str):
     # Remove student
     activity["participants"].remove(email)
     return {"message": f"Unregistered {email} from {activity_name}"}
+
+
+# ---------------------------------------------------------------------------
+# Job auto-apply endpoints
+# ---------------------------------------------------------------------------
+
+class JobSearchRequest(BaseModel):
+    job_id: str
+    title: str
+    company: str
+    location: str
+    job_type: str
+    compensation: str
+    posted_on: str
+    apply_url: str
+    search_term: Optional[str] = ""
+
+
+class StatusUpdateRequest(BaseModel):
+    status: str  # new | saved | applied | rejected
+    notes: Optional[str] = ""
+
+
+@app.get("/jobs")
+def list_jobs(
+    status: Optional[str] = Query(None, description="Filter by status"),
+    min_score: int = Query(0, description="Minimum match score"),
+):
+    """Return all tracked jobs, optionally filtered."""
+    result = list(job_finder.jobs.values())
+    if status:
+        result = [j for j in result if j["status"] == status]
+    result = [j for j in result if j["match_score"] >= min_score]
+    result.sort(key=lambda j: j["match_score"], reverse=True)
+    return result
+
+
+@app.get("/jobs/stats")
+def job_stats():
+    """Return application statistics."""
+    return job_finder.get_stats()
+
+
+@app.get("/jobs/recommendations")
+def job_recommendations():
+    """Return top-10 unacted-on jobs sorted by match score."""
+    result = [
+        j for j in job_finder.jobs.values()
+        if j["status"] in ("new", "saved")
+    ]
+    result.sort(key=lambda j: j["match_score"], reverse=True)
+    return result[:10]
+
+
+@app.get("/jobs/{job_id}")
+def get_job(job_id: str):
+    """Return a single job by ID."""
+    job = job_finder.jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+@app.post("/jobs")
+def add_job(payload: JobSearchRequest):
+    """Add or update a job in the tracker (called after an Indeed search)."""
+    job = job_finder.add_job(
+        job_id=payload.job_id,
+        title=payload.title,
+        company=payload.company,
+        location=payload.location,
+        job_type=payload.job_type,
+        compensation=payload.compensation,
+        posted_on=payload.posted_on,
+        apply_url=payload.apply_url,
+        search_term=payload.search_term,
+    )
+    return job
+
+
+@app.put("/jobs/{job_id}/status")
+def update_job_status(job_id: str, payload: StatusUpdateRequest):
+    """Update the status of a tracked job."""
+    valid = {"new", "saved", "applied", "rejected"}
+    if payload.status not in valid:
+        raise HTTPException(
+            status_code=400,
+            detail=f"status must be one of {sorted(valid)}"
+        )
+    job = job_finder.set_status(job_id, payload.status, payload.notes or "")
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job

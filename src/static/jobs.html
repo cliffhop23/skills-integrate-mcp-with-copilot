@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Indeed Auto Job Apply</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="jobs.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Indeed Auto Job Apply</h1>
+      <h2>AI-Matched Jobs for Thomas Hopkinson</h2>
+      <nav class="header-nav">
+        <a href="/static/index.html">← Back to Activities</a>
+      </nav>
+    </header>
+
+    <main class="jobs-main">
+      <!-- Stats bar -->
+      <section class="stats-bar" id="stats-bar">
+        <div class="stat-card" id="stat-total"><span class="stat-num">—</span><span class="stat-label">Total Tracked</span></div>
+        <div class="stat-card" id="stat-new"><span class="stat-num">—</span><span class="stat-label">New</span></div>
+        <div class="stat-card" id="stat-saved"><span class="stat-num">—</span><span class="stat-label">Saved</span></div>
+        <div class="stat-card" id="stat-applied"><span class="stat-num">—</span><span class="stat-label">Applied</span></div>
+        <div class="stat-card" id="stat-rejected"><span class="stat-num">—</span><span class="stat-label">Passed</span></div>
+      </section>
+
+      <!-- Filter bar -->
+      <section class="filter-bar">
+        <div class="filter-group">
+          <label for="filter-status">Status:</label>
+          <select id="filter-status">
+            <option value="">All</option>
+            <option value="new">New</option>
+            <option value="saved">Saved</option>
+            <option value="applied">Applied</option>
+            <option value="rejected">Passed</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filter-score">Min Match Score:</label>
+          <input type="range" id="filter-score" min="0" max="100" value="0" />
+          <span id="filter-score-val">0%</span>
+        </div>
+        <button id="btn-recommendations" class="btn-secondary">
+          Top Recommendations
+        </button>
+        <button id="btn-refresh" class="btn-secondary">Refresh</button>
+      </section>
+
+      <!-- Toast message -->
+      <div id="toast" class="toast hidden"></div>
+
+      <!-- Jobs grid -->
+      <section class="jobs-section">
+        <h3 id="jobs-heading">All Tracked Jobs</h3>
+        <div id="jobs-grid">
+          <p class="loading-msg">Loading jobs…</p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>&copy; 2026 Thomas Hopkinson · Powered by Indeed MCP</p>
+    </footer>
+
+    <script src="jobs.js"></script>
+  </body>
+</html>
