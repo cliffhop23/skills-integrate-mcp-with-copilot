@@ -13,6 +13,7 @@ from typing import Optional
 import os
 from pathlib import Path
 import job_finder
+import shodan_scanner
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
@@ -133,6 +134,51 @@ def unregister_from_activity(activity_name: str, email: str):
     # Remove student
     activity["participants"].remove(email)
     return {"message": f"Unregistered {email} from {activity_name}"}
+
+
+# ---------------------------------------------------------------------------
+# Shodan — Fortinet SSL VPN vulnerability scanner endpoints
+# ---------------------------------------------------------------------------
+
+class ShodanScanRequest(BaseModel):
+    api_key: str
+    max_results: Optional[int] = 100
+
+
+@app.post("/security/fortinet/scan")
+async def fortinet_scan(payload: ShodanScanRequest):
+    """
+    Query Shodan for internet-exposed Fortinet SSL VPN hosts and classify
+    them against known critical CVEs (defensive use only).
+    """
+    if payload.max_results and payload.max_results > 500:
+        raise HTTPException(status_code=400, detail="max_results cannot exceed 500")
+    result = await shodan_scanner.run_scan(
+        api_key=payload.api_key,
+        max_results=payload.max_results or 100,
+    )
+    return result
+
+
+@app.get("/security/fortinet/scans")
+def list_fortinet_scans():
+    """Return a summary list of all completed Shodan scans."""
+    return shodan_scanner.list_scans()
+
+
+@app.get("/security/fortinet/scans/{scan_id}")
+def get_fortinet_scan(scan_id: str):
+    """Return full results for a specific Shodan scan."""
+    scan = shodan_scanner.get_scan(scan_id)
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    return scan
+
+
+@app.get("/security/fortinet/cves")
+def fortinet_cves():
+    """Return the reference list of tracked Fortinet SSL VPN CVEs."""
+    return shodan_scanner.get_cve_info()
 
 
 # ---------------------------------------------------------------------------
